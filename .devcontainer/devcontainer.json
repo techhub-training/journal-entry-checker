@@ -1,0 +1,10 @@
+{
+  "name": "Journal entry checker",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": { "ghcr.io/devcontainers/features/github-cli:1": {} },
+  "postCreateCommand": "pip install -r requirements.txt",
+  "postAttachCommand": "streamlit run app.py --server.headless true",
+  "forwardPorts": [8501],
+  "portsAttributes": { "8501": { "label": "Streamlit app", "onAutoForward": "openPreview" } },
+  "customizations": { "vscode": { "extensions": ["ms-python.python"] } }
+}

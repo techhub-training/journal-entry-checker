@@ -1,0 +1,7 @@
+# keys and passwords: never commit these
+.streamlit/secrets.toml
+.env
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/

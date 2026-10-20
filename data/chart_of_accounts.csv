@@ -1,0 +1,24 @@
+Account,Name,Type,NormalBalance
+1000,Cash,Asset,Debit
+1100,Accounts Receivable,Asset,Debit
+1200,Merchandise Inventory,Asset,Debit
+1300,Prepaid Insurance,Asset,Debit
+1310,Prepaid Rent,Asset,Debit
+1500,Equipment,Asset,Debit
+1510,Accumulated Depreciation,Contra-asset,Credit
+2000,Accounts Payable,Liability,Credit
+2100,Wages Payable,Liability,Credit
+2200,Customer Deposits (Unearned Revenue),Liability,Credit
+2300,Interest Payable,Liability,Credit
+2500,Notes Payable,Liability,Credit
+3000,Common Stock,Equity,Credit
+3100,Retained Earnings,Equity,Credit
+3200,Dividends,Equity,Debit
+4000,Sales Revenue,Revenue,Credit
+5000,Cost of Goods Sold,Expense,Debit
+6000,Wages Expense,Expense,Debit
+6100,Rent Expense,Expense,Debit
+6200,Insurance Expense,Expense,Debit
+6300,Depreciation Expense,Expense,Debit
+6400,Utilities Expense,Expense,Debit
+7000,Interest Expense,Expense,Debit
