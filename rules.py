@@ -70,16 +70,33 @@ def label(account, chart):
 # ---------- rule 1: is it a valid entry at all? ---------------------------------------------------------------------
 
 def check_lines(lines, chart):
-    """Structural rules, before comparing with the answer. Returns (clean lines, findings).
-
-    TODO (recipe step 3): for each line, skip it if it's completely empty; otherwise
-      - parse the account with parse_account(); unknown -> Finding("unknown_account", ...)
-      - parse the amounts with money(); not a number -> Finding("not_a_number", ...)
-      - exactly one of debit or credit, more than zero -> otherwise Finding("one_side", ...)
-    Then: fewer than two lines -> Finding("empty", ...); total debits != total credits -> Finding("unbalanced", ...).
-    Return the clean lines ({"account": "1300", "debit": Decimal or None, "credit": Decimal or None}) and the findings.
-    """
-    return [], [Finding("todo", "The rules aren't written yet (rules.py, check_lines).")]
+    """Structural rules, before comparing with the answer. Returns (clean lines, findings)."""
+    findings, clean = [], []
+    for i, line in enumerate(lines, 1):
+        if not str(line.get("account") or "").strip() and line.get("debit") in (None, "") and line.get("credit") in (None, ""):
+            continue                                               # an empty row in the grid: ignore it
+        account = parse_account(line.get("account"), chart)
+        try:
+            debit, credit = money(line.get("debit")), money(line.get("credit"))
+        except ValueError as ex:
+            findings.append(Finding("not_a_number", f"Line {i}: {ex}."))
+            continue
+        if account is None:
+            findings.append(Finding("unknown_account", f"Line {i}: \"{line.get('account')}\" isn't in the chart of accounts."))
+        if (debit is None) == (credit is None):
+            findings.append(Finding("one_side", f"Line {i}: enter a debit or a credit, not both and not neither."))
+        elif (debit or credit) <= 0:
+            findings.append(Finding("one_side", f"Line {i}: amounts must be more than zero."))
+        if account is not None:
+            clean.append({"account": account, "debit": debit, "credit": credit})
+    if not findings and len(clean) < 2:
+        findings.append(Finding("empty", "An entry needs at least two lines: something debited and something credited."))
+    if not findings:
+        dr = sum((l["debit"] or 0) for l in clean)
+        cr = sum((l["credit"] or 0) for l in clean)
+        if dr != cr:
+            findings.append(Finding("unbalanced", f"Debits ({dr:,.2f}) don't equal credits ({cr:,.2f})."))
+    return clean, findings
 
 
 # ---------- rule 2: is it the right entry? --------------------------------------------------------------------------
@@ -93,17 +110,40 @@ def net(lines):
 
 
 def compare(lines, answer, chart):
-    """Compare a balanced, valid entry with the answer key. Returns a list of findings.
-
-    TODO (recipe step 3): compare net(lines) with net(answer):
-      - the same -> [Finding("correct", "Correct.")]
-      - every amount the opposite sign -> Finding("reversed", ...)
-      - an account in both, but a different amount -> Finding("wrong_amount", ...)
-      - an account the answer doesn't have, in place of one it does (same amount): name the mistake when you can:
-        an expense in place of a prepaid -> "expensed_prepaid"; revenue in place of a liability -> "revenue_too_early"
-      - otherwise say which TYPE of account is missing, not which account (don't give the answer away).
-    """
-    return [Finding("todo", "The rules aren't written yet (rules.py, compare).")]
+    """Compare a balanced, valid entry with the answer key. Returns a list of findings."""
+    mine, right = net(lines), net(answer)
+    if mine == right:
+        return [Finding("correct", "Correct.")]
+    if mine == {a: -v for a, v in right.items()}:
+        return [Finding("reversed", "The right accounts and amounts, but debits and credits are reversed.")]
+    findings = []
+    for a in sorted(mine.keys() & right.keys()):
+        if (mine[a] > 0) != (right[a] > 0):
+            findings.append(Finding("wrong_side", f"{label(a, chart)} belongs on the other side of the entry."))
+        elif mine[a] != right[a]:
+            findings.append(Finding("wrong_amount", f"{label(a, chart)}: the amount isn't right."))
+    extra = sorted(mine.keys() - right.keys())
+    missing = sorted(right.keys() - mine.keys())
+    for a in list(extra):                      # pair a wrong account with the one it replaced (same side, same amount)
+        b = next((m for m in missing if mine[a] == right[m]), None)
+        if b is None:
+            continue
+        extra.remove(a); missing.remove(b)
+        ta, tb = chart[a]["type"], chart[b]["type"]
+        if ta == "Expense" and tb == "Asset" and chart[b]["name"].startswith("Prepaid"):
+            findings.append(Finding("expensed_prepaid", f"You expensed it ({label(a, chart)}), but the cost covers future months: it's an asset until it's used up."))
+        elif ta == "Revenue" and tb == "Liability":
+            findings.append(Finding("revenue_too_early", f"You recorded revenue ({label(a, chart)}) before it's earned: until the goods are delivered, Ridgeline owes the customer."))
+        elif ta == "Expense" and tb == "Asset":
+            findings.append(Finding("expensed_asset", f"You expensed it ({label(a, chart)}), but this purchase is an asset."))
+        else:
+            findings.append(Finding("wrong_account", f"{label(a, chart)} isn't the right account: this amount belongs in a{'n' if tb[0] in 'AEIOU' else ''} {tb.lower()} account."))
+    for a in extra:
+        findings.append(Finding("extra_account", f"{label(a, chart)} doesn't belong in this entry."))
+    for b in missing:
+        t = chart[b]["type"].lower()
+        findings.append(Finding("missing_account", f"The entry is missing a{'n' if t[0] in 'aeiou' else ''} {t} account."))
+    return findings or [Finding("wrong_entry", "This isn't the right entry.")]
 
 
 def check_entry(lines, answer, chart):

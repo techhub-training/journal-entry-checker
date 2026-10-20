@@ -1,6 +1,6 @@
 """Journal entry checker: pick a transaction, enter the entry you would book, and check it.
 
-The rules in rules.py decide whether the entry is right.
+The rules in rules.py decide whether the entry is right. Claude (explain.py) only explains, and only if you add a key.
 Run:  streamlit run app.py      Test the rules:  python -m pytest
 """
 import pandas as pd
@@ -32,8 +32,29 @@ grid = st.data_editor(
 lines = [{"account": None if pd.isna(r["Account"]) else r["Account"], "debit": None if pd.isna(r["Debit"]) else r["Debit"],
           "credit": None if pd.isna(r["Credit"]) else r["Credit"]} for _, r in grid.iterrows()]
 
-# TODO (recipe step 4): a "Check my entry" button that calls rules.check_entry(lines, KEY[tid], CHART) and shows the
-# result: st.success when it's right, one st.error per finding when it isn't. Then a "Show the answer" expander.
+if st.button("Check my entry", type="primary"):
+    ok, findings = rules.check_entry(lines, KEY[tid], CHART)
+    st.session_state["result"] = (tid, ok, findings, lines)
+
+if st.session_state.get("result", (None,))[0] == tid:
+    _, ok, findings, checked = st.session_state["result"]
+    if ok:
+        st.success("Correct. Debits equal credits, and every account and amount matches the answer key.")
+    else:
+        for f in findings:
+            st.error(f.message)
+        try:
+            has_key = "ANTHROPIC_API_KEY" in st.secrets
+        except Exception:                      # no secrets file at all
+            has_key = False
+        if has_key and st.button("Explain this with Claude"):
+            import explain
+            with st.spinner("Asking Claude…"):
+                st.info(explain.explain(txn, checked, findings, CHART))
+
+with st.expander("Show the answer"):
+    st.dataframe(pd.DataFrame([{"Account": rules.label(l["account"], CHART), "Debit": l["debit"], "Credit": l["credit"]}
+                               for l in KEY[tid]]), hide_index=True)
 
 with st.expander("Chart of accounts"):
     st.dataframe(pd.DataFrame([{"Account": a, **v} for a, v in CHART.items()]), hide_index=True)
