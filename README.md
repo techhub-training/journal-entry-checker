@@ -47,4 +47,4 @@ entry is right.
 
 ## Built by
 
-The ACC 407 class, Winter 2027, in the Mar 23 guided build, with an AI coding assistant. Transactions are fictional.
+The ACC 407 class, Winter 2027, in the Mar 9 guided build, with an AI coding assistant. Transactions are fictional.
